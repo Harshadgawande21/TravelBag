@@ -1,0 +1,6 @@
+{
+  "name": "TravelBag",
+  "description": "Travel companion discovery platform inspired by BlaBlaCar. Plan routes, create travel groups, vote on lodging polls, split budgets, and chat securely.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
