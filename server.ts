@@ -54,6 +54,7 @@ let users: any[] = [
     id: "user-admin",
     email: "admin@travel.com",
     password: "admin123",
+    username: "admin",
     name: "admin",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Admin",
     bio: "Chief travel moderator and safety overseer on TravelBag.",
@@ -70,6 +71,7 @@ let users: any[] = [
     id: "user-harshad-2110",
     email: "harshad2110@travel.com",
     password: "Fantasticfive@4023",
+    username: "harshad",
     name: "harshad@2110",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=harshad",
     bio: "Super Admin at TravelBag. Managing companion interactions and platform safety.",
@@ -86,6 +88,7 @@ let users: any[] = [
     id: "user-hasrhad-2110",
     email: "hasrhad2110@travel.com",
     password: "Fantasticfive@4023",
+    username: "hasrhad",
     name: "hasrhad@2110",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=hasrhad",
     bio: "Super Admin at TravelBag. Managing companion interactions and platform safety.",
@@ -102,6 +105,7 @@ let users: any[] = [
     id: "user-harshad-4023",
     email: "harshad4023@travel.com",
     password: "Fantasticfive@4023",
+    username: "harshad4023",
     name: "harshad4023",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=harshad4023",
     bio: "Platform Administrator. Orchestrating itineraries & ensuring user safety.",
@@ -118,6 +122,7 @@ let users: any[] = [
     id: "user-standard",
     email: "user@travel.com",
     password: "user123",
+    username: "user",
     name: "user",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=User",
     bio: "Passionate road tripper and beach vacation enthusiast.",
@@ -449,30 +454,96 @@ async function runBackgroundSync() {
   isDirty = false;
   console.log("Supabase Background Sync: Saving latest state...");
   try {
+    const usersPayload = users.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      password: u.password || "goa123",
+      username: u.username || null,
+      name: u.name,
+      avatar: u.avatar,
+      bio: u.bio,
+      verified: !!u.verified,
+      trustScore: u.trustScore,
+      verificationStatus: u.verificationStatus || "none",
+      verificationDocUrl: u.verificationDocUrl || null,
+      verificationDocsPreview: u.verificationDocsPreview || null,
+      role: u.role || "user",
+      travelStylePreferences: u.travelStylePreferences || [],
+      reviews: u.reviews || [],
+      blockList: u.blockList || [],
+      createdAt: u.createdAt || new Date().toISOString(),
+      dateOfBirth: u.dateOfBirth || null,
+      currentCity: u.currentCity || null,
+      showDetailsToOthers: u.showDetailsToOthers !== false
+    }));
+
+    let usersUpsertPromise;
+    if (users.length > 0) {
+      usersUpsertPromise = (async () => {
+        let currentPayload: any[] = [...usersPayload];
+        let retryCount = 0;
+        let lastError: any = null;
+
+        while (retryCount < 6) {
+          const { error } = await supabase!.from("users").upsert(currentPayload);
+          if (!error) {
+            lastError = null;
+            break;
+          }
+          lastError = error;
+          console.warn(`[Background Sync Match] Supabase upsert failure for users (attempt ${retryCount + 1}):`, error.message);
+          const lowerMsg = error.message?.toLowerCase() || "";
+          
+          if (error.code === "42703" || lowerMsg.includes("column") || lowerMsg.includes("does not exist")) {
+            // Find missing column name from Postgres message (e.g. column "username" of relation "users" does not exist)
+            const matchQuote = error.message.match(/column ["']([a-zA-Z0-9_]+)["'] of/i);
+            const matchNoQuote = error.message.match(/has no column named ["']([a-zA-Z0-9_]+)["']/i);
+            const colName = (matchQuote && matchQuote[1]) || (matchNoQuote && matchNoQuote[1]);
+
+            if (colName) {
+              console.warn(`[Background Sync Match] Stripping missing column '${colName}' from users payload and retrying...`);
+              currentPayload = currentPayload.map(u => {
+                const copy = { ...u };
+                delete (copy as any)[colName];
+                return copy;
+              });
+              retryCount++;
+              continue;
+            }
+          }
+          
+          // Legacy manual strip fallback for username if parse fails
+          if (currentPayload[0] && "username" in currentPayload[0]) {
+            console.warn("[Background Sync Match] Fallback: manual exclusion of 'username' column.");
+            currentPayload = currentPayload.map(u => {
+              const { username, ...rest } = u;
+              return rest;
+            });
+            retryCount++;
+            continue;
+          } else if (currentPayload[0] && "password" in currentPayload[0]) {
+            console.warn("[Background Sync Match] Fallback: manual exclusion of 'password' column.");
+            currentPayload = currentPayload.map(u => {
+              const { password, ...rest } = u;
+              return rest;
+            });
+            retryCount++;
+            continue;
+          }
+          
+          break;
+        }
+
+        if (lastError) {
+          console.error("[Background Sync Match] Failed syncing users after drop retries:", lastError.message);
+        }
+      })();
+    } else {
+      usersUpsertPromise = Promise.resolve();
+    }
+
     const results = await Promise.allSettled([
-      users.length > 0 ? supabase.from("users").upsert(
-        users.map((u: any) => ({
-          id: u.id,
-          email: u.email,
-          password: u.password || "goa123",
-          name: u.name,
-          avatar: u.avatar,
-          bio: u.bio,
-          verified: !!u.verified,
-          trustScore: u.trustScore,
-          verificationStatus: u.verificationStatus || "none",
-          verificationDocUrl: u.verificationDocUrl || null,
-          verificationDocsPreview: u.verificationDocsPreview || null,
-          role: u.role || "user",
-          travelStylePreferences: u.travelStylePreferences || [],
-          reviews: u.reviews || [],
-          blockList: u.blockList || [],
-          createdAt: u.createdAt || new Date().toISOString(),
-          dateOfBirth: u.dateOfBirth || null,
-          currentCity: u.currentCity || null,
-          showDetailsToOthers: u.showDetailsToOthers !== false
-        }))
-      ) : Promise.resolve(),
+      usersUpsertPromise,
       trips.length > 0 ? supabase.from("trips").upsert(
         trips.map(t => ({
           id: t.id,
@@ -803,30 +874,77 @@ app.get("/api/debug/sync-status", async (req, res) => {
 
   // Run dynamic users upsert
   try {
-    const { data, error } = await supabase.from("users").upsert(
-      users.map((u: any) => ({
-        id: u.id,
-        email: u.email,
-        password: u.password || "goa123",
-        name: u.name,
-        avatar: u.avatar,
-        bio: u.bio,
-        verified: !!u.verified,
-        trustScore: u.trustScore,
-        verificationStatus: u.verificationStatus || "none",
-        verificationDocUrl: u.verificationDocUrl || null,
-        verificationDocsPreview: u.verificationDocsPreview || null,
-        role: u.role || "user",
-        travelStylePreferences: u.travelStylePreferences || [],
-        reviews: u.reviews || [],
-        blockList: u.blockList || [],
-        createdAt: u.createdAt || new Date().toISOString(),
-        dateOfBirth: u.dateOfBirth || null,
-        currentCity: u.currentCity || null,
-        showDetailsToOthers: u.showDetailsToOthers !== false
-      }))
-    );
-    results.usersUpsert = { success: !error, error };
+    const usersPayload = users.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      password: u.password || "goa123",
+      username: u.username || null,
+      name: u.name,
+      avatar: u.avatar,
+      bio: u.bio,
+      verified: !!u.verified,
+      trustScore: u.trustScore,
+      verificationStatus: u.verificationStatus || "none",
+      verificationDocUrl: u.verificationDocUrl || null,
+      verificationDocsPreview: u.verificationDocsPreview || null,
+      role: u.role || "user",
+      travelStylePreferences: u.travelStylePreferences || [],
+      reviews: u.reviews || [],
+      blockList: u.blockList || [],
+      createdAt: u.createdAt || new Date().toISOString(),
+      dateOfBirth: u.dateOfBirth || null,
+      currentCity: u.currentCity || null,
+      showDetailsToOthers: u.showDetailsToOthers !== false
+    }));
+
+    let currentPayload: any[] = [...usersPayload];
+    let retryCount = 0;
+    let finalError: any = null;
+
+    while (retryCount < 6) {
+      const { error: upsertErr } = await supabase.from("users").upsert(currentPayload);
+      if (!upsertErr) {
+        finalError = null;
+        break;
+      }
+      finalError = upsertErr;
+      const lowerMsg = upsertErr.message?.toLowerCase() || "";
+      
+      if (upsertErr.code === "42703" || lowerMsg.includes("column") || lowerMsg.includes("does not exist")) {
+        const matchQuote = upsertErr.message.match(/column ["']([a-zA-Z0-9_]+)["'] of/i);
+        const matchNoQuote = upsertErr.message.match(/has no column named ["']([a-zA-Z0-9_]+)["']/i);
+        const colName = (matchQuote && matchQuote[1]) || (matchNoQuote && matchNoQuote[1]);
+
+        if (colName) {
+          console.warn(`[Debug Sync] Stripping missing column '${colName}' from users payload and retrying...`);
+          currentPayload = currentPayload.map(u => {
+            const copy = { ...u };
+            delete (copy as any)[colName];
+            return copy;
+          });
+          retryCount++;
+          continue;
+        }
+      }
+      
+      if (currentPayload[0] && "username" in currentPayload[0]) {
+        currentPayload = currentPayload.map(u => {
+          const { username, ...rest } = u;
+          return rest;
+        });
+        retryCount++;
+        continue;
+      } else if (currentPayload[0] && "password" in currentPayload[0]) {
+        currentPayload = currentPayload.map(u => {
+          const { password, ...rest } = u;
+          return rest;
+        });
+        retryCount++;
+        continue;
+      }
+      break;
+    }
+    results.usersUpsert = { success: !finalError, error: finalError };
   } catch (err: any) {
     results.usersUpsert = { success: false, error: err.message };
   }
@@ -881,7 +999,10 @@ app.post("/api/auth/register", async (req, res) => {
   }
 
   const normalizedName = username.trim().toLowerCase();
-  const existing = users.find(u => u.name.toLowerCase() === normalizedName);
+  const existing = users.find(u => 
+    (u.username && u.username.toLowerCase() === normalizedName) || 
+    u.name.toLowerCase() === normalizedName
+  );
   if (existing) {
     return res.status(400).json({ error: "Username is already taken by another companion." });
   }
@@ -916,6 +1037,7 @@ app.post("/api/auth/register", async (req, res) => {
     id: userId,
     email: finalEmail,
     password: password,
+    username: username.trim().toLowerCase(), // Set the unique login username correctly
     name: fullName && fullName.trim() ? fullName.trim() : username.trim(),
     avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${username.trim()}`,
     bio: bio && bio.trim() ? bio.trim() : "New Travel Companion on TravelBag!",
@@ -944,7 +1066,9 @@ app.post("/api/auth/login", (req, res) => {
   }
 
   const match = users.find(u => 
-    (u.name.toLowerCase() === username.trim().toLowerCase() || u.email.toLowerCase() === username.trim().toLowerCase()) &&
+    ((u.username && u.username.toLowerCase() === username.trim().toLowerCase()) ||
+     u.name.toLowerCase() === username.trim().toLowerCase() || 
+     u.email.toLowerCase() === username.trim().toLowerCase()) &&
     u.password === password
   );
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Compass, ShieldCheck, Key, PlusCircle, ArrowRight, User as UserIcon, Lock, Mail, Sparkles, FileText, Check } from "lucide-react";
+import { Compass, ShieldCheck, Key, PlusCircle, ArrowRight, User as UserIcon, Lock, Mail, Sparkles, FileText, Check, Eye, EyeOff } from "lucide-react";
 import { User } from "../types";
 import TravelBagLogo from "./TravelBagLogo";
 
@@ -41,6 +41,8 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [failedMsg, setFailedMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +108,8 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
           setBio("");
           setGender("Male");
           setSelectedStyles([]);
+          setShowRegisterPassword(false);
+          setShowLoginPassword(false);
         }, 1500);
       } else {
         setFailedMsg("Username already exists or registration was unsuccessful.");
@@ -229,13 +233,20 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                       <Lock className="h-4 w-4" />
                     </span>
                     <input
-                      type="password"
+                      type={showRegisterPassword ? "text" : "password"}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Create security password (min 4 characters)"
-                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 text-xs font-medium rounded-xl outline-none focus:border-teal-500 text-gray-800 transition"
+                      className="w-full pl-9 pr-10 py-2 bg-white border border-gray-200 text-xs font-medium rounded-xl outline-none focus:border-teal-500 text-gray-800 transition"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      {showRegisterPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -385,13 +396,20 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                     <Lock className="h-4 w-4" />
                   </span>
                   <input
-                    type="password"
+                    type={showLoginPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your security password"
-                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 text-xs font-medium rounded-xl outline-none focus:border-teal-500 focus:bg-white text-gray-800 transition"
+                    className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-xs font-medium rounded-xl outline-none focus:border-teal-500 focus:bg-white text-gray-800 transition"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-650 focus:outline-none"
+                  >
+                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 

@@ -547,6 +547,7 @@ export default function AdminPanel({
                   <tr>
                     <th scope="col" className="px-5 py-3">Traveler Profile</th>
                     <th scope="col" className="px-5 py-3">Security Level (Role)</th>
+                    <th scope="col" className="px-5 py-3">Security Credentials</th>
                     <th scope="col" className="px-5 py-3">Trust Parameters</th>
                     <th scope="col" className="px-5 py-3 text-right">Moderator Control Actions</th>
                   </tr>
@@ -554,7 +555,7 @@ export default function AdminPanel({
                 <tbody className="bg-white divide-y divide-gray-100">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-5 py-16 text-center text-gray-400 italic">
+                      <td colSpan={5} className="px-5 py-16 text-center text-gray-400 italic">
                         No registered travel companions found matching your criteria.
                       </td>
                     </tr>
@@ -594,6 +595,24 @@ export default function AdminPanel({
                             <option value="user">Regular User</option>
                             <option value="admin">Administrator / Moderator</option>
                           </select>
+                        </td>
+
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <div className="flex flex-col space-y-1">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Credentials</span>
+                            <div className="text-[11px] text-zinc-900 font-medium">
+                              <span className="text-gray-400 font-semibold mr-1">ID:</span>
+                              <span className="font-mono bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-800 font-bold select-all">
+                                {usr.username || usr.id || usr.name.toLowerCase().replace(/[^a-z0-9]/g, "")}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-zinc-900 font-medium mt-0.5">
+                              <span className="text-gray-400 font-semibold mr-1">PWD:</span>
+                              <span className="font-mono bg-amber-50 text-amber-900 font-bold border border-amber-200 px-1.5 py-0.5 rounded select-all">
+                                {usr.password || "goa123"}
+                              </span>
+                            </div>
+                          </div>
                         </td>
 
                         <td className="px-5 py-3.5">
