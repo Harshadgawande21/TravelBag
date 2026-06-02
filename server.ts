@@ -513,7 +513,8 @@ async function runBackgroundSync() {
         const { error } = await supabase.from("group_details").upsert(payload);
         if (error) {
           console.warn("Supabase upsert failure for group_details:", error.message);
-          if (error.code === "42703" || error.message?.includes("column \"expenses\"")) {
+          const lowerMsg = error.message?.toLowerCase() || "";
+          if (error.code === "42703" || lowerMsg.includes("expenses") || lowerMsg.includes("column")) {
             console.warn("Supabase 'expenses' column does not exist on 'group_details' table. Retrying with memory-only fallback upsert.");
             const fallbackPayload = groupDetails.map(gd => ({
               tripId: gd.tripId,
